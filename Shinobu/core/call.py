@@ -23,7 +23,7 @@ from pytgcalls.types import (
     LeftGroupCallParticipant,
     Update,
 )
-from pytgcalls.types.input_stream import AudioPiped
+from pytgcalls.types import AudioPiped
 from pytgcalls.types.stream import StreamAudioEnded
 
 import config
