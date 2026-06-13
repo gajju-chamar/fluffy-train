@@ -325,14 +325,15 @@ async def maintenance_on():
     return await onoffdb.insert_one({"on_off": 1})
 
 
-# Audio Bitrate
+# Audio Bitrate Bypass
+# (PyTgCalls v3 removed these specific classes, so we return None to let it auto-select the best quality)
 
-from pytgcalls.types import (
-    HighQualityAudio,
-    LowQualityAudio,
-    MediumQualityAudio,
-)
-
+def HighQualityAudio(): return None
+def HighQualityVideo(): return None
+def LowQualityVideo(): return None
+def MediumQualityVideo(): return None
+def MediumQualityAudio(): return None
+def LowQualityAudio(): return None
 
 async def save_audio_bitrate(chat_id: int, bitrate: str):
     audio[chat_id] = bitrate
