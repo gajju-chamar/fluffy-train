@@ -1,0 +1,96 @@
+{
+    "name": "Shinobu Music Bot",
+    "description": "Telegram Group Calls music streaming bot written in Python with Pyrogram and Py-Tgcalls. Supporting YouTube and Spotify.",
+    "keywords": [
+        "python3",
+        "telegram",
+        "bot",
+        "Shinobu",
+        "ShinobuMusicBot",
+        "telegram-bot",
+        "pyrogram"
+    ],
+    "stack": "container",
+    "env": {
+        "API_ID": {
+            "description": "Get from https://my.telegram.org",
+            "value": "",
+            "required": true
+        },
+        "API_HASH": {
+            "description": "Get from https://my.telegram.org",
+            "value": "",
+            "required": true
+        },
+        "BOT_TOKEN": {
+            "description": "Get from @BotFather on Telegram",
+            "value": "",
+            "required": true
+        },
+        "MONGO_DB_URI": {
+            "description": "Get from https://mongodb.com/atlas",
+            "value": "",
+            "required": true
+        },
+        "LOG_GROUP_ID": {
+            "description": "Your log supergroup ID (starts with -100)",
+            "value": "",
+            "required": true
+        },
+        "MUSIC_BOT_NAME": {
+            "description": "Your bot's display name (ASCII only)",
+            "value": "Shinobu",
+            "required": true
+        },
+        "OWNER_ID": {
+            "description": "Your Telegram user ID",
+            "value": "",
+            "required": true
+        },
+        "STRING_SESSION": {
+            "description": "Pyrogram string session for assistant account",
+            "value": "",
+            "required": true
+        },
+        "SPOTIFY_CLIENT_ID": {
+            "description": "Get from https://developer.spotify.com/dashboard",
+            "value": "",
+            "required": false
+        },
+        "SPOTIFY_CLIENT_SECRET": {
+            "description": "Get from https://developer.spotify.com/dashboard",
+            "value": "",
+            "required": false
+        },
+        "GENIUS_API_KEY": {
+            "description": "Get from https://genius.com/api-clients",
+            "value": "",
+            "required": false
+        },
+        "AUTO_LEAVING_ASSISTANT": {
+            "description": "Set True to auto-leave assistant from inactive chats",
+            "value": "",
+            "required": false
+        },
+        "STRING_SESSION2": {
+            "description": "Second assistant session (optional)",
+            "value": "",
+            "required": false
+        },
+        "STRING_SESSION3": {
+            "description": "Third assistant session (optional)",
+            "value": "",
+            "required": false
+        },
+        "STRING_SESSION4": {
+            "description": "Fourth assistant session (optional)",
+            "value": "",
+            "required": false
+        },
+        "STRING_SESSION5": {
+            "description": "Fifth assistant session (optional)",
+            "value": "",
+            "required": false
+        }
+    }
+}
