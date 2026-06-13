@@ -7,9 +7,7 @@ RUN apt-get update -y && apt-get install -y ffmpeg \
 COPY . /app/
 WORKDIR /app/
 
-RUN pip install --upgrade pip setuptools wheel
-
-RUN pip install \
+RUN python -m pip install \
     --prefer-binary \
     --retries 20 \
     --timeout 120 \
