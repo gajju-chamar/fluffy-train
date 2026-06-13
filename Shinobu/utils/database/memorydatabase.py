@@ -327,7 +327,7 @@ async def maintenance_on():
 
 # Audio Bitrate
 
-from pytgcalls.types.input_stream.quality import (
+from pytgcalls.types import (
     HighQualityAudio,
     LowQualityAudio,
     MediumQualityAudio,
