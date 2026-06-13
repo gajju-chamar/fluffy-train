@@ -24,7 +24,7 @@ from pytgcalls.types import (
     Update,
 )
 from pytgcalls.types import AudioPiped
-from pytgcalls.types.stream import StreamAudioEnded
+from pytgcalls.types import StreamAudioEnded
 
 import config
 from strings import get_string
