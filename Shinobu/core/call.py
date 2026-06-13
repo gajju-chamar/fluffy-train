@@ -28,7 +28,6 @@ from pytgcalls.types.stream import StreamAudioEnded
 
 import config
 from strings import get_string
-from Shinobu import LOGGER, YouTube, app
 from Shinobu.misc import db
 from Shinobu.utils.database import (
     add_active_chat,
@@ -200,6 +199,7 @@ class Call(PyTgCalls):
                 autoend[chat_id] = datetime.now() + timedelta(minutes=AUTO_END_TIME)
 
     async def join_assistant(self, original_chat_id, chat_id):
+        from Shinobu import app
         language = await get_lang(original_chat_id)
         _ = get_string(language)
         userbot = await get_assistant(chat_id)
@@ -242,6 +242,7 @@ class Call(PyTgCalls):
                 await m.edit(_["call_6"].format(userbot.name))
 
     async def change_stream(self, client, chat_id):
+        from Shinobu import app, YouTube
         check = db.get(chat_id)
         popped = None
         loop = await get_loop(chat_id)
@@ -391,6 +392,7 @@ class Call(PyTgCalls):
         return str(round(sum(pings) / len(pings), 3))
 
     async def start(self):
+        from Shinobu import LOGGER
         LOGGER(__name__).info("Starting PyTgCalls clients...")
         if config.STRING1:
             await self.one.start()
