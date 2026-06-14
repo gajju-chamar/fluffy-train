@@ -12,13 +12,30 @@ from pyrogram.errors import (
 )
 from pyrogram.types import InlineKeyboardMarkup
 from pytgcalls import PyTgCalls
-from pytgcalls.types import (
-    JoinedGroupCallParticipant,
-    LeftGroupCallParticipant,
-    MediaStream,
-    StreamAudioEnded,
-    Update,
-)
+
+try:
+    from pytgcalls.types import MediaStream
+except ImportError:
+    try:
+        from pytgcalls.types import AudioPiped as MediaStream
+    except ImportError:
+        MediaStream = None
+
+try:
+    from pytgcalls.types import StreamAudioEnded
+except ImportError:
+    StreamAudioEnded = type("StreamAudioEnded", (), {})
+
+try:
+    from pytgcalls.types import (
+        JoinedGroupCallParticipant,
+        LeftGroupCallParticipant,
+        Update,
+    )
+except ImportError:
+    JoinedGroupCallParticipant = type("JoinedGroupCallParticipant", (), {})
+    LeftGroupCallParticipant = type("LeftGroupCallParticipant", (), {})
+    Update = type("Update", (), {})
 
 import config
 from strings import get_string
