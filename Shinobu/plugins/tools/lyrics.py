@@ -30,7 +30,7 @@ else:
 
 
 @app.on_message(
-    filters.command(LYRICS_COMMAND) & ~filters.edited & ~BANNED_USERS
+    filters.command(LYRICS_COMMAND)  & ~BANNED_USERS
 )
 @language
 async def lrsearch(client, message: Message, _):

@@ -19,7 +19,7 @@ SONG_COMMAND = get_command("SONG_COMMAND")
 @app.on_message(
     filters.command(SONG_COMMAND)
     & filters.group
-    & ~filters.edited
+    
     & ~BANNED_USERS
 )
 @language
@@ -38,7 +38,7 @@ async def song_command_group(client, message: Message, _):
 @app.on_message(
     filters.command(SONG_COMMAND)
     & filters.private
-    & ~filters.edited
+    
     & ~BANNED_USERS
 )
 @language

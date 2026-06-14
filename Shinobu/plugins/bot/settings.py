@@ -49,7 +49,7 @@ SETTINGS_COMMAND = get_command("SETTINGS_COMMAND")
 @app.on_message(
     filters.command(SETTINGS_COMMAND)
     & filters.group
-    & ~filters.edited
+    
     & ~BANNED_USERS
 )
 @language

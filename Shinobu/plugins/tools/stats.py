@@ -51,7 +51,7 @@ GLOBAL_IMG = "assets/Global.jpeg"
 @app.on_message(
     filters.command(STATS_COMMAND)
     & filters.group
-    & ~filters.edited
+    
     & ~BANNED_USERS
 )
 @language
@@ -67,7 +67,7 @@ async def stats_global(client, message: Message, _):
 @app.on_message(
     filters.command(GSTATS_COMMAND)
     & filters.group
-    & ~filters.edited
+    
     & ~BANNED_USERS
 )
 @language
