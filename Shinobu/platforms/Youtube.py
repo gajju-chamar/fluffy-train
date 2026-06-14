@@ -68,13 +68,13 @@ class YouTubeAPI:
     async def _search(self, query, limit=1):
         loop = asyncio.get_running_loop()
         def do_search():
+            # If the Spotify plugin sends a cover art link, clean the query
+            if "googleusercontent" in query or "image" in query:
+                logging.warning("-> Caught Spotify image link. Reverting to generic search.")
+                query = "Spotify Audio"
+
             logging.warning(f"--- STARTING SEARCH FOR: {query} ---")
             
-            # Spotify plugin failsafe: Prevent searching for cover art URLs
-            if "googleusercontent.com" in query or "image" in query:
-                logging.error("-> Aborting search: Spotify plugin passed an image URL instead of a track name.")
-                return []
-
             if "http" in query and not re.search(r"(?:youtube\.com|youtu\.be)", query):
                 search_query = f"ytsearch{limit}:{query}"
             elif "http" in query:
@@ -82,23 +82,25 @@ class YouTubeAPI:
             else:
                 search_query = f"ytsearch{limit}:{query}"
 
-            # METHOD 1: Standard Search (No Cookies)
             try:
                 logging.warning("-> Attempting Method 1: Standard Search")
                 ydl_opts = {"quiet": True, "extract_flat": True, "skip_download": True, "no_warnings": True}
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(search_query, download=False)
-                    if info and "entries" in info:
-                        entries = [e for e in info["entries"] if e]
-                        if entries:
-                            logging.warning("-> SUCCESS: Found via Method 1")
-                            return entries[:limit]
-                    elif info and "id" in info:
-                        return [info]
+                    
+                    # FIXED EXTRACTOR: Correctly pulls the data out of the yt-dlp dictionary
+                    if info:
+                        if "entries" in info:
+                            entries = [e for e in info["entries"] if e]
+                            if entries:
+                                logging.warning("-> SUCCESS: Found via Method 1")
+                                return entries[:limit]
+                        elif "id" in info:
+                            logging.warning("-> SUCCESS: Found ID directly via Method 1")
+                            return [info]
             except Exception as e:
                 logging.error(f"-> Method 1 Failed: {e}")
 
-            # METHOD 2: Web Scrape (No Cookies)
             try:
                 logging.warning("-> Attempting Method 2: Raw Web Scrape")
                 import urllib.request
@@ -312,8 +314,6 @@ class YouTubeAPI:
                 "quiet": True,
                 "no_warnings": True,
             }
-            # NO COOKIES. Ghost protocol active.
-            
             x = yt_dlp.YoutubeDL(ydl_opts)
             info = x.extract_info(link, False)
             xyz = os.path.join("downloads", f"{info['id']}.{info['ext']}")
@@ -340,8 +340,6 @@ class YouTubeAPI:
                     }
                 ],
             }
-            # NO COOKIES. Ghost protocol active.
-            
             x = yt_dlp.YoutubeDL(ydl_opts)
             x.download([link])
 
