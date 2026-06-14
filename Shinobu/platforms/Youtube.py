@@ -71,14 +71,20 @@ class YouTubeAPI:
         if "&" in link:
             link = link.split("&")[0]
         results = VideosSearch(link, limit=1)
-        for result in (await results.next())["result"]:
-            title = result["title"]
-            duration_min = result["duration"]
-            vidid = result["id"]
-            if str(duration_min) == "None":
-                duration_sec = 0
-            else:
-                duration_sec = int(time_to_seconds(duration_min))
+        search_data = await results.next()
+        
+        if not search_data or not search_data.get("result"):
+            raise Exception("No search results found on YouTube.")
+            
+        result = search_data["result"][0]
+        title = result.get("title", "Unknown Title")
+        duration_min = result.get("duration", "None")
+        vidid = result.get("id")
+        
+        if str(duration_min) == "None":
+            duration_sec = 0
+        else:
+            duration_sec = int(time_to_seconds(duration_min))
         return title, duration_min, duration_sec, vidid
 
     async def title(self, link: str, videoid: Union[bool, str] = None):
@@ -87,9 +93,10 @@ class YouTubeAPI:
         if "&" in link:
             link = link.split("&")[0]
         results = VideosSearch(link, limit=1)
-        for result in (await results.next())["result"]:
-            title = result["title"]
-        return title
+        search_data = await results.next()
+        if not search_data or not search_data.get("result"):
+            return "Unknown Title"
+        return search_data["result"][0].get("title", "Unknown Title")
 
     async def duration(self, link: str, videoid: Union[bool, str] = None):
         if videoid:
@@ -97,9 +104,10 @@ class YouTubeAPI:
         if "&" in link:
             link = link.split("&")[0]
         results = VideosSearch(link, limit=1)
-        for result in (await results.next())["result"]:
-            duration = result["duration"]
-        return duration
+        search_data = await results.next()
+        if not search_data or not search_data.get("result"):
+            return "None"
+        return search_data["result"][0].get("duration", "None")
 
     async def track(self, link: str, videoid: Union[bool, str] = None):
         if videoid:
@@ -107,11 +115,18 @@ class YouTubeAPI:
         if "&" in link:
             link = link.split("&")[0]
         results = VideosSearch(link, limit=1)
-        for result in (await results.next())["result"]:
-            title = result["title"]
-            duration_min = result["duration"]
-            vidid = result["id"]
-            yturl = result["link"]
+        search_data = await results.next()
+        
+        # SAFETY NET: If search fails, throw an error to be caught by play.py
+        if not search_data or not search_data.get("result"):
+            raise Exception("No search results found on YouTube.")
+            
+        result = search_data["result"][0]
+        title = result.get("title", "Unknown Title")
+        duration_min = result.get("duration", "None")
+        vidid = result.get("id")
+        yturl = result.get("link")
+        
         track_details = {
             "title": title,
             "link": yturl,
@@ -147,10 +162,19 @@ class YouTubeAPI:
         if "&" in link:
             link = link.split("&")[0]
         a = VideosSearch(link, limit=10)
-        result = (await a.next()).get("result")
-        title = result[query_type]["title"]
-        duration_min = result[query_type]["duration"]
-        vidid = result[query_type]["id"]
+        search_data = await a.next()
+        
+        if not search_data or not search_data.get("result"):
+            raise Exception("No search results found on YouTube.")
+            
+        result = search_data["result"]
+        # Make sure the query_type index doesn't go out of bounds
+        if query_type >= len(result):
+            query_type = 0
+            
+        title = result[query_type].get("title", "Unknown Title")
+        duration_min = result[query_type].get("duration", "None")
+        vidid = result[query_type].get("id")
         return title, duration_min, vidid
 
     async def download(
@@ -176,6 +200,9 @@ class YouTubeAPI:
                 "quiet": True,
                 "no_warnings": True,
             }
+            # IF YOU EVER ADD A COOKIES.TXT FILE TO YOUR REPO, UNCOMMENT THE LINE BELOW
+            # ydl_opts["cookiefile"] = "cookies.txt"
+            
             x = yt_dlp.YoutubeDL(ydl_opts)
             info = x.extract_info(link, False)
             xyz = os.path.join("downloads", f"{info['id']}.{info['ext']}")
@@ -203,6 +230,9 @@ class YouTubeAPI:
                     }
                 ],
             }
+            # IF YOU EVER ADD A COOKIES.TXT FILE TO YOUR REPO, UNCOMMENT THE LINE BELOW
+            # ydl_opts["cookiefile"] = "cookies.txt"
+            
             x = yt_dlp.YoutubeDL(ydl_opts)
             x.download([link])
 
