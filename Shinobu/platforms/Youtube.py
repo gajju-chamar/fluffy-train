@@ -8,7 +8,6 @@ from typing import Union
 
 import yt_dlp
 from pyrogram.types import Message
-from youtube_search import YoutubeSearch  # <--- WE REPLACED THE BROKEN LIBRARY HERE
 
 import config
 from Shinobu.utils.formatters import time_to_seconds
@@ -66,13 +65,28 @@ class YouTubeAPI:
         return text[offset: offset + length]
 
     async def _search(self, query, limit=1):
-        # A safe, async wrapper for the working search library
+        # THE ULTIMATE FIX: Using yt-dlp's Android API bypass to search instead of scraping HTML
         loop = asyncio.get_running_loop()
         def do_search():
+            ydl_opts = {
+                "quiet": True,
+                "extract_flat": True, # Don't download, just extract info
+                "skip_download": True,
+                "no_warnings": True,
+            }
+            # If it's not a URL, format it as a yt-dlp search query
+            search_query = query if "http" in query else f"ytsearch{limit}:{query}"
+            
             try:
-                return YoutubeSearch(query, max_results=limit).to_dict()
-            except:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(search_query, download=False)
+                    if "entries" in info:
+                        return list(info["entries"])[:limit]
+                    return [info]
+            except Exception as e:
+                print(f"YT-DLP SEARCH ERROR: {e}")
                 return []
+                
         return await loop.run_in_executor(None, do_search)
 
     async def details(self, link: str, videoid: Union[bool, str] = None):
@@ -87,13 +101,17 @@ class YouTubeAPI:
 
         result = results[0]
         title = result.get("title", "Unknown Title")
-        duration_min = result.get("duration", "None")
-        vidid = result.get("id")
-
-        if str(duration_min) == "None" or duration_min == 0:
-            duration_sec = 0
+        dur_sec = result.get("duration", 0)
+        
+        if dur_sec:
+            m, s = divmod(dur_sec, 60)
+            duration_min = f"{int(m):02d}:{int(s):02d}"
+            duration_sec = int(dur_sec)
         else:
-            duration_sec = int(time_to_seconds(duration_min))
+            duration_min = "None"
+            duration_sec = 0
+            
+        vidid = result.get("id")
         return title, duration_min, duration_sec, vidid
 
     async def title(self, link: str, videoid: Union[bool, str] = None):
@@ -114,7 +132,12 @@ class YouTubeAPI:
         results = await self._search(link, limit=1)
         if not results:
             return "None"
-        return results[0].get("duration", "None")
+            
+        dur_sec = results[0].get("duration", 0)
+        if dur_sec:
+            m, s = divmod(dur_sec, 60)
+            return f"{int(m):02d}:{int(s):02d}"
+        return "None"
 
     async def track(self, link: str, videoid: Union[bool, str] = None):
         if videoid:
@@ -128,7 +151,14 @@ class YouTubeAPI:
 
         result = results[0]
         title = result.get("title", "Unknown Title")
-        duration_min = result.get("duration", "None")
+        dur_sec = result.get("duration", 0)
+        
+        if dur_sec:
+            m, s = divmod(dur_sec, 60)
+            duration_min = f"{int(m):02d}:{int(s):02d}"
+        else:
+            duration_min = "None"
+            
         vidid = result.get("id")
         yturl = f"https://www.youtube.com/watch?v={vidid}"
 
@@ -176,7 +206,14 @@ class YouTubeAPI:
 
         result = results[query_type]
         title = result.get("title", "Unknown Title")
-        duration_min = result.get("duration", "None")
+        dur_sec = result.get("duration", 0)
+        
+        if dur_sec:
+            m, s = divmod(dur_sec, 60)
+            duration_min = f"{int(m):02d}:{int(s):02d}"
+        else:
+            duration_min = "None"
+            
         vidid = result.get("id")
         return title, duration_min, vidid
 
@@ -194,7 +231,6 @@ class YouTubeAPI:
         loop = asyncio.get_running_loop()
 
         def audio_dl():
-            # Best native audio — no re-encoding, CPU friendly for free tier hosting
             ydl_opts = {
                 "format": "bestaudio[ext=opus]/bestaudio[ext=m4a]/bestaudio/best",
                 "outtmpl": "downloads/%(id)s.%(ext)s",
@@ -203,7 +239,6 @@ class YouTubeAPI:
                 "quiet": True,
                 "no_warnings": True,
             }
-            # IF YOU EVER ADD A COOKIES.TXT FILE TO YOUR REPO, UNCOMMENT THE LINE BELOW
             # ydl_opts["cookiefile"] = "cookies.txt"
             
             x = yt_dlp.YoutubeDL(ydl_opts)
@@ -215,7 +250,6 @@ class YouTubeAPI:
             return xyz
 
         def song_audio_dl():
-            # Download as named mp3 for /song command
             fpath = f"downloads/{title}.%(ext)s"
             ydl_opts = {
                 "format": "bestaudio/best",
@@ -233,7 +267,6 @@ class YouTubeAPI:
                     }
                 ],
             }
-            # IF YOU EVER ADD A COOKIES.TXT FILE TO YOUR REPO, UNCOMMENT THE LINE BELOW
             # ydl_opts["cookiefile"] = "cookies.txt"
             
             x = yt_dlp.YoutubeDL(ydl_opts)
@@ -243,6 +276,5 @@ class YouTubeAPI:
             await loop.run_in_executor(None, song_audio_dl)
             return f"downloads/{title}.mp3"
 
-        # Standard stream download
         downloaded_file = await loop.run_in_executor(None, audio_dl)
         return downloaded_file, True
