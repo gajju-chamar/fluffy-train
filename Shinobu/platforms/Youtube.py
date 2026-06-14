@@ -8,7 +8,7 @@ from typing import Union
 
 import yt_dlp
 from pyrogram.types import Message
-from youtubesearchpython.__future__ import VideosSearch
+from youtube_search import YoutubeSearch  # <--- WE REPLACED THE BROKEN LIBRARY HERE
 
 import config
 from Shinobu.utils.formatters import time_to_seconds
@@ -65,23 +65,32 @@ class YouTubeAPI:
             return None
         return text[offset: offset + length]
 
+    async def _search(self, query, limit=1):
+        # A safe, async wrapper for the working search library
+        loop = asyncio.get_running_loop()
+        def do_search():
+            try:
+                return YoutubeSearch(query, max_results=limit).to_dict()
+            except:
+                return []
+        return await loop.run_in_executor(None, do_search)
+
     async def details(self, link: str, videoid: Union[bool, str] = None):
         if videoid:
             link = self.base + link
         if "&" in link:
             link = link.split("&")[0]
-        results = VideosSearch(link, limit=1)
-        search_data = await results.next()
-        
-        if not search_data or not search_data.get("result"):
+
+        results = await self._search(link, limit=1)
+        if not results:
             raise Exception("No search results found on YouTube.")
-            
-        result = search_data["result"][0]
+
+        result = results[0]
         title = result.get("title", "Unknown Title")
         duration_min = result.get("duration", "None")
         vidid = result.get("id")
-        
-        if str(duration_min) == "None":
+
+        if str(duration_min) == "None" or duration_min == 0:
             duration_sec = 0
         else:
             duration_sec = int(time_to_seconds(duration_min))
@@ -92,41 +101,37 @@ class YouTubeAPI:
             link = self.base + link
         if "&" in link:
             link = link.split("&")[0]
-        results = VideosSearch(link, limit=1)
-        search_data = await results.next()
-        if not search_data or not search_data.get("result"):
+        results = await self._search(link, limit=1)
+        if not results:
             return "Unknown Title"
-        return search_data["result"][0].get("title", "Unknown Title")
+        return results[0].get("title", "Unknown Title")
 
     async def duration(self, link: str, videoid: Union[bool, str] = None):
         if videoid:
             link = self.base + link
         if "&" in link:
             link = link.split("&")[0]
-        results = VideosSearch(link, limit=1)
-        search_data = await results.next()
-        if not search_data or not search_data.get("result"):
+        results = await self._search(link, limit=1)
+        if not results:
             return "None"
-        return search_data["result"][0].get("duration", "None")
+        return results[0].get("duration", "None")
 
     async def track(self, link: str, videoid: Union[bool, str] = None):
         if videoid:
             link = self.base + link
         if "&" in link:
             link = link.split("&")[0]
-        results = VideosSearch(link, limit=1)
-        search_data = await results.next()
-        
-        # SAFETY NET: If search fails, throw an error to be caught by play.py
-        if not search_data or not search_data.get("result"):
+
+        results = await self._search(link, limit=1)
+        if not results:
             raise Exception("No search results found on YouTube.")
-            
-        result = search_data["result"][0]
+
+        result = results[0]
         title = result.get("title", "Unknown Title")
         duration_min = result.get("duration", "None")
         vidid = result.get("id")
-        yturl = result.get("link")
-        
+        yturl = f"https://www.youtube.com/watch?v={vidid}"
+
         track_details = {
             "title": title,
             "link": yturl,
@@ -161,20 +166,18 @@ class YouTubeAPI:
             link = self.base + link
         if "&" in link:
             link = link.split("&")[0]
-        a = VideosSearch(link, limit=10)
-        search_data = await a.next()
-        
-        if not search_data or not search_data.get("result"):
+
+        results = await self._search(link, limit=10)
+        if not results:
             raise Exception("No search results found on YouTube.")
-            
-        result = search_data["result"]
-        # Make sure the query_type index doesn't go out of bounds
-        if query_type >= len(result):
+
+        if query_type >= len(results):
             query_type = 0
-            
-        title = result[query_type].get("title", "Unknown Title")
-        duration_min = result[query_type].get("duration", "None")
-        vidid = result[query_type].get("id")
+
+        result = results[query_type]
+        title = result.get("title", "Unknown Title")
+        duration_min = result.get("duration", "None")
+        vidid = result.get("id")
         return title, duration_min, vidid
 
     async def download(
