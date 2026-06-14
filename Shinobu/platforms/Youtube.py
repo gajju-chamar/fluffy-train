@@ -68,34 +68,74 @@ class YouTubeAPI:
     async def _search(self, query, limit=1):
         loop = asyncio.get_running_loop()
         def do_search():
-            ydl_opts = {
-                "quiet": True,
-                "extract_flat": True, 
-                "skip_download": True,
-                "no_warnings": True,
-                # REMOVED ignoreerrors SO WE CAN SEE THE REAL CRASH
-            }
-            # CRITICAL: NO COOKIES HERE. Cookies trigger Captchas on search pages!
+            logging.warning(f"--- STARTING SEARCH FOR: {query} ---")
             
+            # FORMAT THE QUERY
             if "http" in query and not re.search(r"(?:youtube\.com|youtu\.be)", query):
                 search_query = f"ytsearch{limit}:{query}"
             elif "http" in query:
                 search_query = query
             else:
                 search_query = f"ytsearch{limit}:{query}"
-            
+
+            # METHOD 1: Standard yt-dlp search
             try:
+                logging.warning("-> Attempting Method 1: Standard Search")
+                ydl_opts = {"quiet": True, "extract_flat": True, "skip_download": True, "no_warnings": True}
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(search_query, download=False)
-                    if not info:
-                        return []
-                    if "entries" in info:
-                        return list(info["entries"])[:limit]
-                    return [info]
+                    if info and "entries" in info:
+                        entries = list(info["entries"])
+                        if entries:
+                            logging.warning("-> SUCCESS: Found via Method 1")
+                            return entries[:limit]
+                    elif info and "id" in info:
+                        return [info]
             except Exception as e:
-                # IF IT FAILS NOW, IT WILL PRINT THE EXACT REASON IN RED
-                logging.error(f"--- CRITICAL YT-DLP SEARCH CRASH --- : {e}")
-                raise Exception(f"YT-DLP Core Error: {e}")
+                logging.error(f"-> Method 1 Failed: {e}")
+
+            # METHOD 2: Raw Web Scrape (Bypasses API/Captcha walls)
+            try:
+                logging.warning("-> Attempting Method 2: Raw Web Scrape")
+                import urllib.request
+                import urllib.parse
+                if "http" not in query:
+                    encoded_query = urllib.parse.quote(query)
+                    url = f"https://www.youtube.com/results?search_query={encoded_query}"
+                    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+                    html = urllib.request.urlopen(req, timeout=5).read().decode('utf-8', errors='ignore')
+                    vid_ids = re.findall(r"watch\?v=(\S{11})", html)
+                    
+                    if vid_ids:
+                        vidid = vid_ids[0]
+                        logging.warning(f"-> SUCCESS: Raw Scrape found ID: {vidid}. Fetching metadata with cookies...")
+                        # Use cookies to safely fetch the details of this specific video
+                        opts = {"quiet": True, "skip_download": True, "cookiefile": "cookies.txt"}
+                        with yt_dlp.YoutubeDL(opts) as ydl:
+                            info = ydl.extract_info(f"https://www.youtube.com/watch?v={vidid}", download=False)
+                            if info:
+                                return [info]
+            except Exception as e:
+                logging.error(f"-> Method 2 Failed: {e}")
+
+            # METHOD 3: yt-dlp search WITH Cookies
+            try:
+                logging.warning("-> Attempting Method 3: Cookie Search")
+                ydl_opts = {"quiet": True, "extract_flat": True, "skip_download": True, "cookiefile": "cookies.txt"}
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(search_query, download=False)
+                    if info and "entries" in info:
+                        entries = list(info["entries"])
+                        if entries:
+                            logging.warning("-> SUCCESS: Found via Method 3")
+                            return entries[:limit]
+                    elif info and "id" in info:
+                        return [info]
+            except Exception as e:
+                logging.error(f"-> Method 3 Failed: {e}")
+
+            logging.error("--- ALL SEARCH METHODS FAILED ---")
+            return []
                 
         return await loop.run_in_executor(None, do_search)
 
@@ -248,7 +288,6 @@ class YouTubeAPI:
                 "quiet": True,
                 "no_warnings": True,
             }
-            # VIP PASS REMAINS ACTIVE FOR DOWNLOADS
             ydl_opts["cookiefile"] = "cookies.txt" 
             
             x = yt_dlp.YoutubeDL(ydl_opts)
@@ -277,7 +316,6 @@ class YouTubeAPI:
                     }
                 ],
             }
-            # VIP PASS REMAINS ACTIVE FOR DOWNLOADS
             ydl_opts["cookiefile"] = "cookies.txt" 
             
             x = yt_dlp.YoutubeDL(ydl_opts)
