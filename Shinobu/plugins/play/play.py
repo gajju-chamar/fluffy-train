@@ -3,6 +3,7 @@
 
 import random
 import string
+import traceback  # <--- ADDED TO UNMASK ERRORS
 
 from pyrogram import filters
 from pyrogram.types import InlineKeyboardMarkup, InputMediaPhoto, Message
@@ -67,7 +68,8 @@ async def play_commnd(
                         message.from_user.id,
                     )
                 except Exception as e:
-                    print(e)
+                    print("--- PLAYLIST ERROR ---")
+                    traceback.print_exc()
                     return await mystic.edit_text(_["play_3"])
                 streamtype = "playlist"
                 plist_type = "yt"
@@ -77,7 +79,8 @@ async def play_commnd(
                 try:
                     details, track_id = await YouTube.track(url)
                 except Exception as e:
-                    print(e)
+                    print("--- YOUTUBE TRACK URL ERROR ---")
+                    traceback.print_exc()
                     return await mystic.edit_text(_["play_3"])
                 streamtype = "youtube"
                 cap = _["play_11"].format(details["title"], details["duration_min"])
@@ -91,14 +94,18 @@ async def play_commnd(
             if "track" in url:
                 try:
                     details, track_id = await Spotify.track(url)
-                except Exception:
+                except Exception as e:
+                    print("--- SPOTIFY TRACK ERROR ---")
+                    traceback.print_exc()
                     return await mystic.edit_text(_["play_3"])
                 streamtype = "youtube"
                 cap = _["play_11"].format(details["title"], details["duration_min"])
             elif "playlist" in url:
                 try:
                     details, plist_id = await Spotify.playlist(url)
-                except Exception:
+                except Exception as e:
+                    print("--- SPOTIFY PLAYLIST ERROR ---")
+                    traceback.print_exc()
                     return await mystic.edit_text(_["play_3"])
                 streamtype = "playlist"
                 plist_type = "spplay"
@@ -106,7 +113,9 @@ async def play_commnd(
             elif "album" in url:
                 try:
                     details, plist_id = await Spotify.album(url)
-                except Exception:
+                except Exception as e:
+                    print("--- SPOTIFY ALBUM ERROR ---")
+                    traceback.print_exc()
                     return await mystic.edit_text(_["play_3"])
                 streamtype = "playlist"
                 plist_type = "spalbum"
@@ -114,7 +123,9 @@ async def play_commnd(
             elif "artist" in url:
                 try:
                     details, plist_id = await Spotify.artist(url)
-                except Exception:
+                except Exception as e:
+                    print("--- SPOTIFY ARTIST ERROR ---")
+                    traceback.print_exc()
                     return await mystic.edit_text(_["play_3"])
                 streamtype = "playlist"
                 plist_type = "spartist"
@@ -152,7 +163,9 @@ async def play_commnd(
         query = message.text.split(None, 1)[1]
         try:
             details, track_id = await YouTube.track(query)
-        except Exception:
+        except Exception as e:
+            print("--- YOUTUBE SEARCH ERROR ---")
+            traceback.print_exc()
             return await mystic.edit_text(_["play_3"])
         streamtype = "youtube"
 
@@ -279,7 +292,9 @@ async def play_music(client, CallbackQuery, _):
     )
     try:
         details, track_id = await YouTube.track(vidid, True)
-    except Exception:
+    except Exception as e:
+        print("--- CALLBACK YOUTUBE TRACK ERROR ---")
+        traceback.print_exc()
         return await mystic.edit_text(_["play_3"])
     if details["duration_min"]:
         duration_sec = time_to_seconds(details["duration_min"])
@@ -364,22 +379,30 @@ async def play_playlists_command(client, CallbackQuery, _):
             result = await YouTube.playlist(
                 videoid, config.PLAYLIST_FETCH_LIMIT, CallbackQuery.from_user.id, True
             )
-        except Exception:
+        except Exception as e:
+            print("--- PLAYLIST CALLBACK ERROR ---")
+            traceback.print_exc()
             return await mystic.edit_text(_["play_3"])
     elif ptype == "spplay":
         try:
             result, spotify_id = await Spotify.playlist(videoid)
-        except Exception:
+        except Exception as e:
+            print("--- SPOTIFY PLAYLIST CALLBACK ERROR ---")
+            traceback.print_exc()
             return await mystic.edit_text(_["play_3"])
     elif ptype == "spalbum":
         try:
             result, spotify_id = await Spotify.album(videoid)
-        except Exception:
+        except Exception as e:
+            print("--- SPOTIFY ALBUM CALLBACK ERROR ---")
+            traceback.print_exc()
             return await mystic.edit_text(_["play_3"])
     elif ptype == "spartist":
         try:
             result, spotify_id = await Spotify.artist(videoid)
-        except Exception:
+        except Exception as e:
+            print("--- SPOTIFY ARTIST CALLBACK ERROR ---")
+            traceback.print_exc()
             return await mystic.edit_text(_["play_3"])
 
     try:
