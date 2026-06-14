@@ -93,6 +93,7 @@ class YouTubeAPI:
                     "skip_download": True,
                     "no_warnings": True,
                     "noplaylist": True,
+                    "cookiefile": "cookies.txt",
                 }
 
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -123,10 +124,15 @@ class YouTubeAPI:
                     vid_ids = re.findall(r"watch\?v=(\S{11})", html)
                     if vid_ids:
                         vidid = vid_ids[0]
-                        opts = {"quiet": True, "skip_download": True}
+                        opts = {
+                            "quiet": True,
+                            "skip_download": True,
+                            "cookiefile": "cookies.txt",
+                        }
                         with yt_dlp.YoutubeDL(opts) as ydl:
                             info = ydl.extract_info(f"https://www.youtube.com/watch?v={vidid}", download=False)
-                            if info: return [info]
+                            if info:
+                                return [info]
             except Exception as e:
                 logging.error(f"-> Method 2 Failed: {e}")
             return []
@@ -134,10 +140,13 @@ class YouTubeAPI:
         return await loop.run_in_executor(None, do_search, query)
 
     async def details(self, link: str, videoid: Union[bool, str] = None):
-        if videoid: link = self.base + link
-        if "&" in link: link = link.split("&")[0]
+        if videoid:
+            link = self.base + link
+        if "&" in link:
+            link = link.split("&")[0]
         results = await self._search(link, limit=1)
-        if not results: raise Exception("No search results found on YouTube.")
+        if not results:
+            raise Exception("No search results found on YouTube.")
         try:
             result = results[0]
             title = result.get("title") or "Unknown Title"
@@ -151,20 +160,24 @@ class YouTubeAPI:
             raise Exception(e)
 
     async def title(self, link: str, videoid: Union[bool, str] = None):
-        if videoid: link = self.base + link
+        if videoid:
+            link = self.base + link
         results = await self._search(link, limit=1)
         return results[0].get("title", "Unknown Title") if results else "Unknown Title"
 
     async def duration(self, link: str, videoid: Union[bool, str] = None):
-        if videoid: link = self.base + link
+        if videoid:
+            link = self.base + link
         results = await self._search(link, limit=1)
         dur = results[0].get("duration") if results else None
         return f"{int(dur//60):02d}:{int(dur%60):02d}" if dur else "None"
 
     async def track(self, link: str, videoid: Union[bool, str] = None):
-        if videoid: link = self.base + link
+        if videoid:
+            link = self.base + link
         results = await self._search(link, limit=1)
-        if not results: raise Exception("No search results found.")
+        if not results:
+            raise Exception("No search results found.")
         try:
             res = results[0]
             dur = res.get("duration")
@@ -185,26 +198,46 @@ class YouTubeAPI:
 
     async def slider(self, link: str, query_type: int, videoid: Union[bool, str] = None):
         results = await self._search(link, limit=10)
-        if not results: raise Exception("No search results found.")
+        if not results:
+            raise Exception("No search results found.")
         res = results[query_type if query_type < len(results) else 0]
         dur = res.get("duration")
         return res.get("title", "Unknown"), f"{int(dur//60):02d}:{int(dur%60):02d}" if dur else None, res.get("id")
 
     async def download(self, link: str, mystic, videoid: Union[bool, str] = None, songaudio: Union[bool, str] = None, title: Union[bool, str] = None) -> str:
-        if videoid: link = self.base + link
+        if videoid:
+            link = self.base + link
         loop = asyncio.get_running_loop()
+
         def audio_dl():
-            ydl_opts = {"format": "bestaudio[ext=opus]/bestaudio[ext=m4a]/bestaudio/best", "outtmpl": "downloads/%(id)s.%(ext)s", "quiet": True}
+            ydl_opts = {
+                "format": "bestaudio[ext=opus]/bestaudio[ext=m4a]/bestaudio/best",
+                "outtmpl": "downloads/%(id)s.%(ext)s",
+                "quiet": True,
+                "cookiefile": "cookies.txt",
+            }
             x = yt_dlp.YoutubeDL(ydl_opts)
             info = x.extract_info(link, False)
             path = f"downloads/{info['id']}.{info['ext']}"
-            if not os.path.exists(path): x.download([link])
+            if not os.path.exists(path):
+                x.download([link])
             return path
+
         def song_audio_dl():
             fpath = f"downloads/{title}.mp3"
-            ydl_opts = {"format": "bestaudio/best", "outtmpl": fpath, "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3", "preferredquality": "320"}]}
+            ydl_opts = {
+                "format": "bestaudio/best",
+                "outtmpl": fpath,
+                "cookiefile": "cookies.txt",
+                "postprocessors": [{
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "mp3",
+                    "preferredquality": "320"
+                }]
+            }
             yt_dlp.YoutubeDL(ydl_opts).download([link])
             return fpath
+
         if songaudio:
             path = await loop.run_in_executor(None, song_audio_dl)
             return path
