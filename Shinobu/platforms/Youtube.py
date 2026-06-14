@@ -70,6 +70,11 @@ class YouTubeAPI:
         def do_search():
             logging.warning(f"--- STARTING SEARCH FOR: {query} ---")
             
+            # Spotify plugin failsafe: Prevent searching for cover art URLs
+            if "googleusercontent.com" in query or "image" in query:
+                logging.error("-> Aborting search: Spotify plugin passed an image URL instead of a track name.")
+                return []
+
             if "http" in query and not re.search(r"(?:youtube\.com|youtu\.be)", query):
                 search_query = f"ytsearch{limit}:{query}"
             elif "http" in query:
@@ -77,7 +82,7 @@ class YouTubeAPI:
             else:
                 search_query = f"ytsearch{limit}:{query}"
 
-            # METHOD 1: Standard Search
+            # METHOD 1: Standard Search (No Cookies)
             try:
                 logging.warning("-> Attempting Method 1: Standard Search")
                 ydl_opts = {"quiet": True, "extract_flat": True, "skip_download": True, "no_warnings": True}
@@ -93,7 +98,7 @@ class YouTubeAPI:
             except Exception as e:
                 logging.error(f"-> Method 1 Failed: {e}")
 
-            # METHOD 2: Web Scrape
+            # METHOD 2: Web Scrape (No Cookies)
             try:
                 logging.warning("-> Attempting Method 2: Raw Web Scrape")
                 import urllib.request
@@ -101,34 +106,18 @@ class YouTubeAPI:
                 if "http" not in query:
                     encoded_query = urllib.parse.quote(query)
                     url = f"https://www.youtube.com/results?search_query={encoded_query}"
-                    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
                     html = urllib.request.urlopen(req, timeout=5).read().decode('utf-8', errors='ignore')
                     vid_ids = re.findall(r"watch\?v=(\S{11})", html)
                     if vid_ids:
                         vidid = vid_ids[0]
-                        logging.warning(f"-> SUCCESS: Found ID: {vidid}. Fetching metadata...")
-                        opts = {"quiet": True, "skip_download": True, "cookiefile": "cookies.txt"}
+                        logging.warning(f"-> SUCCESS: Found ID: {vidid}.")
+                        opts = {"quiet": True, "skip_download": True}
                         with yt_dlp.YoutubeDL(opts) as ydl:
                             info = ydl.extract_info(f"https://www.youtube.com/watch?v={vidid}", download=False)
                             if info: return [info]
             except Exception as e:
                 logging.error(f"-> Method 2 Failed: {e}")
-
-            # METHOD 3: Cookie Search
-            try:
-                logging.warning("-> Attempting Method 3: Cookie Search")
-                ydl_opts = {"quiet": True, "extract_flat": True, "skip_download": True, "cookiefile": "cookies.txt"}
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(search_query, download=False)
-                    if info and "entries" in info:
-                        entries = [e for e in info["entries"] if e]
-                        if entries:
-                            logging.warning("-> SUCCESS: Found via Method 3")
-                            return entries[:limit]
-                    elif info and "id" in info:
-                        return [info]
-            except Exception as e:
-                logging.error(f"-> Method 3 Failed: {e}")
 
             return []
                 
@@ -169,7 +158,7 @@ class YouTubeAPI:
 
             return title, duration_min, duration_sec, vidid
         except Exception as e:
-            logging.error(f"--- FATAL PARSING ERROR IN DETAILS ---: {e}", exc_info=True)
+            logging.error(f"--- FATAL ERROR IN DETAILS ---: {e}")
             raise Exception(e)
 
     async def title(self, link: str, videoid: Union[bool, str] = None):
@@ -223,7 +212,6 @@ class YouTubeAPI:
                 except:
                     duration_min = None
             else:
-                # BY SETTING THIS TO NONE, WE BYPASS THE MATH CRASH IN PLAY.PY
                 duration_min = None
                 
             vidid = result.get("id")
@@ -241,7 +229,7 @@ class YouTubeAPI:
             }
             return track_details, vidid
         except Exception as e:
-            logging.error(f"--- FATAL PARSING ERROR IN TRACK ---: {e}", exc_info=True)
+            logging.error(f"--- FATAL ERROR IN TRACK ---: {e}")
             raise Exception(e)
 
     async def playlist(self, link, limit, user_id, videoid: Union[bool, str] = None):
@@ -299,7 +287,7 @@ class YouTubeAPI:
                 
             return title, duration_min, vidid
         except Exception as e:
-            logging.error(f"--- FATAL PARSING ERROR IN SLIDER ---: {e}", exc_info=True)
+            logging.error(f"--- FATAL ERROR IN SLIDER ---: {e}")
             raise Exception(e)
 
     async def download(
@@ -324,7 +312,7 @@ class YouTubeAPI:
                 "quiet": True,
                 "no_warnings": True,
             }
-            ydl_opts["cookiefile"] = "cookies.txt" 
+            # NO COOKIES. Ghost protocol active.
             
             x = yt_dlp.YoutubeDL(ydl_opts)
             info = x.extract_info(link, False)
@@ -352,7 +340,7 @@ class YouTubeAPI:
                     }
                 ],
             }
-            ydl_opts["cookiefile"] = "cookies.txt" 
+            # NO COOKIES. Ghost protocol active.
             
             x = yt_dlp.YoutubeDL(ydl_opts)
             x.download([link])
