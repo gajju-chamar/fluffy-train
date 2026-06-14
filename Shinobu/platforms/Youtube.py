@@ -4,6 +4,7 @@
 import asyncio
 import os
 import re
+import logging
 from typing import Union
 
 import yt_dlp
@@ -72,12 +73,10 @@ class YouTubeAPI:
                 "extract_flat": True, 
                 "skip_download": True,
                 "no_warnings": True,
-                "ignoreerrors": True, # BYPASSES DRM AND UNAVAILABLE VIDEO CRASHES
+                # REMOVED ignoreerrors SO WE CAN SEE THE REAL CRASH
             }
-            # ACTIVATING COOKIES FOR SEARCHES TO AVOID RATE LIMITS
-            ydl_opts["cookiefile"] = "cookies.txt"
+            # CRITICAL: NO COOKIES HERE. Cookies trigger Captchas on search pages!
             
-            # IF IT'S A SPOTIFY LINK, FORCE A YOUTUBE TEXT SEARCH TO FIND THE AUDIO
             if "http" in query and not re.search(r"(?:youtube\.com|youtu\.be)", query):
                 search_query = f"ytsearch{limit}:{query}"
             elif "http" in query:
@@ -94,8 +93,9 @@ class YouTubeAPI:
                         return list(info["entries"])[:limit]
                     return [info]
             except Exception as e:
-                print(f"YT-DLP SEARCH ERROR: {e}")
-                return []
+                # IF IT FAILS NOW, IT WILL PRINT THE EXACT REASON IN RED
+                logging.error(f"--- CRITICAL YT-DLP SEARCH CRASH --- : {e}")
+                raise Exception(f"YT-DLP Core Error: {e}")
                 
         return await loop.run_in_executor(None, do_search)
 
@@ -248,7 +248,7 @@ class YouTubeAPI:
                 "quiet": True,
                 "no_warnings": True,
             }
-            # ACTIVE VIP PASS
+            # VIP PASS REMAINS ACTIVE FOR DOWNLOADS
             ydl_opts["cookiefile"] = "cookies.txt" 
             
             x = yt_dlp.YoutubeDL(ydl_opts)
@@ -277,7 +277,7 @@ class YouTubeAPI:
                     }
                 ],
             }
-            # ACTIVE VIP PASS
+            # VIP PASS REMAINS ACTIVE FOR DOWNLOADS
             ydl_opts["cookiefile"] = "cookies.txt" 
             
             x = yt_dlp.YoutubeDL(ydl_opts)
