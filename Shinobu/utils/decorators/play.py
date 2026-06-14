@@ -87,13 +87,16 @@ def PlayWrapper(command):
             fplay = True
         else:
             fplay = None
-            
+
+        # THE FIX: Correctly checking if the user wants video or audio
+        video = True if message.command[0][0] == "v" else None
+
         return await command(
             client,
             message,
             _,
             chat_id,
-            audio_telegram,  # <-- THIS IS THE MISSING PIECE
+            video,  # <--- Passing the correct flag so YouTube doesn't choke
             channel,
             playmode,
             url,
