@@ -4,6 +4,7 @@
 import sys
 
 from pyrogram import Client
+from pyrogram.enums import ChatMemberStatus
 from pyrogram.types import BotCommand
 
 import config
@@ -54,7 +55,7 @@ class ShinobuBot(Client):
                 pass
 
         a = await self.get_chat_member(config.LOG_GROUP_ID, self.id)
-        if a.status != "administrator":
+        if a.status not in (ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER):
             LOGGER(__name__).error(
                 "Please promote Shinobu as Admin in the log group."
             )
