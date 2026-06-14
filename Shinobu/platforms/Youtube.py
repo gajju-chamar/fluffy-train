@@ -70,7 +70,6 @@ class YouTubeAPI:
         def do_search():
             logging.warning(f"--- STARTING SEARCH FOR: {query} ---")
             
-            # FORMAT THE QUERY
             if "http" in query and not re.search(r"(?:youtube\.com|youtu\.be)", query):
                 search_query = f"ytsearch{limit}:{query}"
             elif "http" in query:
@@ -78,14 +77,14 @@ class YouTubeAPI:
             else:
                 search_query = f"ytsearch{limit}:{query}"
 
-            # METHOD 1: Standard yt-dlp search
+            # METHOD 1: Standard Search
             try:
                 logging.warning("-> Attempting Method 1: Standard Search")
                 ydl_opts = {"quiet": True, "extract_flat": True, "skip_download": True, "no_warnings": True}
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(search_query, download=False)
                     if info and "entries" in info:
-                        entries = list(info["entries"])
+                        entries = [e for e in info["entries"] if e]
                         if entries:
                             logging.warning("-> SUCCESS: Found via Method 1")
                             return entries[:limit]
@@ -94,7 +93,7 @@ class YouTubeAPI:
             except Exception as e:
                 logging.error(f"-> Method 1 Failed: {e}")
 
-            # METHOD 2: Raw Web Scrape (Bypasses API/Captcha walls)
+            # METHOD 2: Web Scrape
             try:
                 logging.warning("-> Attempting Method 2: Raw Web Scrape")
                 import urllib.request
@@ -102,30 +101,27 @@ class YouTubeAPI:
                 if "http" not in query:
                     encoded_query = urllib.parse.quote(query)
                     url = f"https://www.youtube.com/results?search_query={encoded_query}"
-                    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+                    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
                     html = urllib.request.urlopen(req, timeout=5).read().decode('utf-8', errors='ignore')
                     vid_ids = re.findall(r"watch\?v=(\S{11})", html)
-                    
                     if vid_ids:
                         vidid = vid_ids[0]
-                        logging.warning(f"-> SUCCESS: Raw Scrape found ID: {vidid}. Fetching metadata with cookies...")
-                        # Use cookies to safely fetch the details of this specific video
+                        logging.warning(f"-> SUCCESS: Found ID: {vidid}. Fetching metadata...")
                         opts = {"quiet": True, "skip_download": True, "cookiefile": "cookies.txt"}
                         with yt_dlp.YoutubeDL(opts) as ydl:
                             info = ydl.extract_info(f"https://www.youtube.com/watch?v={vidid}", download=False)
-                            if info:
-                                return [info]
+                            if info: return [info]
             except Exception as e:
                 logging.error(f"-> Method 2 Failed: {e}")
 
-            # METHOD 3: yt-dlp search WITH Cookies
+            # METHOD 3: Cookie Search
             try:
                 logging.warning("-> Attempting Method 3: Cookie Search")
                 ydl_opts = {"quiet": True, "extract_flat": True, "skip_download": True, "cookiefile": "cookies.txt"}
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(search_query, download=False)
                     if info and "entries" in info:
-                        entries = list(info["entries"])
+                        entries = [e for e in info["entries"] if e]
                         if entries:
                             logging.warning("-> SUCCESS: Found via Method 3")
                             return entries[:limit]
@@ -134,7 +130,6 @@ class YouTubeAPI:
             except Exception as e:
                 logging.error(f"-> Method 3 Failed: {e}")
 
-            logging.error("--- ALL SEARCH METHODS FAILED ---")
             return []
                 
         return await loop.run_in_executor(None, do_search)
@@ -149,20 +144,33 @@ class YouTubeAPI:
         if not results:
             raise Exception("No search results found on YouTube.")
 
-        result = results[0]
-        title = result.get("title", "Unknown Title")
-        dur_sec = result.get("duration", 0)
-        
-        if dur_sec:
-            m, s = divmod(dur_sec, 60)
-            duration_min = f"{int(m):02d}:{int(s):02d}"
-            duration_sec = int(dur_sec)
-        else:
-            duration_min = "None"
-            duration_sec = 0
+        try:
+            result = results[0]
+            title = result.get("title") or "Unknown Title"
             
-        vidid = result.get("id")
-        return title, duration_min, duration_sec, vidid
+            dur_sec = result.get("duration")
+            if dur_sec:
+                try:
+                    dur_sec = float(dur_sec)
+                    m, s = divmod(dur_sec, 60)
+                    duration_min = f"{int(m):02d}:{int(s):02d}"
+                    duration_sec = int(dur_sec)
+                except:
+                    duration_min = None
+                    duration_sec = 0
+            else:
+                duration_min = None
+                duration_sec = 0
+                
+            vidid = result.get("id")
+            if not vidid:
+                url = result.get("url", "")
+                vidid = url.split("v=")[-1][:11] if "v=" in url else "Unknown"
+
+            return title, duration_min, duration_sec, vidid
+        except Exception as e:
+            logging.error(f"--- FATAL PARSING ERROR IN DETAILS ---: {e}", exc_info=True)
+            raise Exception(e)
 
     async def title(self, link: str, videoid: Union[bool, str] = None):
         if videoid:
@@ -183,10 +191,13 @@ class YouTubeAPI:
         if not results:
             return "None"
             
-        dur_sec = results[0].get("duration", 0)
+        dur_sec = results[0].get("duration")
         if dur_sec:
-            m, s = divmod(dur_sec, 60)
-            return f"{int(m):02d}:{int(s):02d}"
+            try:
+                m, s = divmod(float(dur_sec), 60)
+                return f"{int(m):02d}:{int(s):02d}"
+            except:
+                return "None"
         return "None"
 
     async def track(self, link: str, videoid: Union[bool, str] = None):
@@ -199,26 +210,39 @@ class YouTubeAPI:
         if not results:
             raise Exception("No search results found on YouTube.")
 
-        result = results[0]
-        title = result.get("title", "Unknown Title")
-        dur_sec = result.get("duration", 0)
-        
-        if dur_sec:
-            m, s = divmod(dur_sec, 60)
-            duration_min = f"{int(m):02d}:{int(s):02d}"
-        else:
-            duration_min = "None"
+        try:
+            result = results[0]
+            title = result.get("title") or "Unknown Title"
             
-        vidid = result.get("id")
-        yturl = f"https://www.youtube.com/watch?v={vidid}"
+            dur_sec = result.get("duration")
+            if dur_sec:
+                try:
+                    dur_sec = float(dur_sec)
+                    m, s = divmod(dur_sec, 60)
+                    duration_min = f"{int(m):02d}:{int(s):02d}"
+                except:
+                    duration_min = None
+            else:
+                # BY SETTING THIS TO NONE, WE BYPASS THE MATH CRASH IN PLAY.PY
+                duration_min = None
+                
+            vidid = result.get("id")
+            if not vidid:
+                url = result.get("url", "")
+                vidid = url.split("v=")[-1][:11] if "v=" in url else "Unknown"
+                
+            yturl = f"https://www.youtube.com/watch?v={vidid}"
 
-        track_details = {
-            "title": title,
-            "link": yturl,
-            "vidid": vidid,
-            "duration_min": duration_min,
-        }
-        return track_details, vidid
+            track_details = {
+                "title": title,
+                "link": yturl,
+                "vidid": vidid,
+                "duration_min": duration_min,
+            }
+            return track_details, vidid
+        except Exception as e:
+            logging.error(f"--- FATAL PARSING ERROR IN TRACK ---: {e}", exc_info=True)
+            raise Exception(e)
 
     async def playlist(self, link, limit, user_id, videoid: Union[bool, str] = None):
         if videoid:
@@ -250,21 +274,33 @@ class YouTubeAPI:
         if not results:
             raise Exception("No search results found on YouTube.")
 
-        if query_type >= len(results):
-            query_type = 0
+        try:
+            if query_type >= len(results):
+                query_type = 0
 
-        result = results[query_type]
-        title = result.get("title", "Unknown Title")
-        dur_sec = result.get("duration", 0)
-        
-        if dur_sec:
-            m, s = divmod(dur_sec, 60)
-            duration_min = f"{int(m):02d}:{int(s):02d}"
-        else:
-            duration_min = "None"
+            result = results[query_type]
+            title = result.get("title") or "Unknown Title"
             
-        vidid = result.get("id")
-        return title, duration_min, vidid
+            dur_sec = result.get("duration")
+            if dur_sec:
+                try:
+                    dur_sec = float(dur_sec)
+                    m, s = divmod(dur_sec, 60)
+                    duration_min = f"{int(m):02d}:{int(s):02d}"
+                except:
+                    duration_min = None
+            else:
+                duration_min = None
+                
+            vidid = result.get("id")
+            if not vidid:
+                url = result.get("url", "")
+                vidid = url.split("v=")[-1][:11] if "v=" in url else "Unknown"
+                
+            return title, duration_min, vidid
+        except Exception as e:
+            logging.error(f"--- FATAL PARSING ERROR IN SLIDER ---: {e}", exc_info=True)
+            raise Exception(e)
 
     async def download(
         self,
