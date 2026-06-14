@@ -67,10 +67,10 @@ class YouTubeAPI:
 
     async def _search(self, query, limit=1):
         loop = asyncio.get_running_loop()
-        
+
         def do_search(q):
             logging.warning(f"--- STARTING SEARCH FOR: {q} ---")
-            
+
             # Spotify plugin failsafe
             if "googleusercontent" in q or "image" in q:
                 logging.warning("-> Caught Spotify image link. Reverting to generic search.")
@@ -86,14 +86,27 @@ class YouTubeAPI:
             # METHOD 1: Standard Search
             try:
                 logging.warning("-> Attempting Method 1: Standard Search")
-                ydl_opts = {"quiet": True, "extract_flat": True, "skip_download": True, "no_warnings": True}
+
+                ydl_opts = {
+                    "quiet": True,
+                    "extract_flat": False,
+                    "skip_download": True,
+                    "no_warnings": True,
+                    "noplaylist": True,
+                }
+
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(search_query, download=False)
+                    logging.warning(f"SEARCH RESULT = {info}")
+
                     if info:
                         if "entries" in info:
                             entries = [e for e in info["entries"] if e]
-                            if entries: return entries[:limit]
-                        elif "id" in info: return [info]
+                            if entries:
+                                return entries[:limit]
+                        elif "id" in info:
+                            return [info]
+
             except Exception as e:
                 logging.error(f"-> Method 1 Failed: {e}")
 
