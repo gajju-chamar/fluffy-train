@@ -65,21 +65,31 @@ class YouTubeAPI:
         return text[offset: offset + length]
 
     async def _search(self, query, limit=1):
-        # THE ULTIMATE FIX: Using yt-dlp's Android API bypass to search instead of scraping HTML
         loop = asyncio.get_running_loop()
         def do_search():
             ydl_opts = {
                 "quiet": True,
-                "extract_flat": True, # Don't download, just extract info
+                "extract_flat": True, 
                 "skip_download": True,
                 "no_warnings": True,
+                "ignoreerrors": True, # BYPASSES DRM AND UNAVAILABLE VIDEO CRASHES
             }
-            # If it's not a URL, format it as a yt-dlp search query
-            search_query = query if "http" in query else f"ytsearch{limit}:{query}"
+            # ACTIVATING COOKIES FOR SEARCHES TO AVOID RATE LIMITS
+            ydl_opts["cookiefile"] = "cookies.txt"
+            
+            # IF IT'S A SPOTIFY LINK, FORCE A YOUTUBE TEXT SEARCH TO FIND THE AUDIO
+            if "http" in query and not re.search(r"(?:youtube\.com|youtu\.be)", query):
+                search_query = f"ytsearch{limit}:{query}"
+            elif "http" in query:
+                search_query = query
+            else:
+                search_query = f"ytsearch{limit}:{query}"
             
             try:
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(search_query, download=False)
+                    if not info:
+                        return []
                     if "entries" in info:
                         return list(info["entries"])[:limit]
                     return [info]
@@ -175,7 +185,6 @@ class YouTubeAPI:
             link = self.listbase + link
         if "&" in link:
             link = link.split("&")[0]
-        # Hard cap at 20 tracks
         limit = min(limit, 20)
         playlist = await shell_cmd(
             f"yt-dlp -i --get-id --flat-playlist --playlist-end {limit} --skip-download {link}"
@@ -239,7 +248,8 @@ class YouTubeAPI:
                 "quiet": True,
                 "no_warnings": True,
             }
-            # ydl_opts["cookiefile"] = "cookies.txt"
+            # ACTIVE VIP PASS
+            ydl_opts["cookiefile"] = "cookies.txt" 
             
             x = yt_dlp.YoutubeDL(ydl_opts)
             info = x.extract_info(link, False)
@@ -267,7 +277,8 @@ class YouTubeAPI:
                     }
                 ],
             }
-            # ydl_opts["cookiefile"] = "cookies.txt"
+            # ACTIVE VIP PASS
+            ydl_opts["cookiefile"] = "cookies.txt" 
             
             x = yt_dlp.YoutubeDL(ydl_opts)
             x.download([link])
