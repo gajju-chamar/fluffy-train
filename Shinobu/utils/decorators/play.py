@@ -87,11 +87,13 @@ def PlayWrapper(command):
             fplay = True
         else:
             fplay = None
+            
         return await command(
             client,
             message,
             _,
             chat_id,
+            audio_telegram,  # <-- THIS IS THE MISSING PIECE
             channel,
             playmode,
             url,
